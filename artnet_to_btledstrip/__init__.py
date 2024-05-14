@@ -6,7 +6,10 @@ from typing import (
     List,
     Optional,
     Dict,
+    Callable,
+    Any,
 )
+from functools import reduce
 from stupidArtnet import StupidArtnetServer  # type: ignore[import-untyped]
 from btledstrip import (
     BTLedStrip,
@@ -17,6 +20,58 @@ from btledstrip import (
 CONTROLLERS: Dict[str, Type[Controller]] = {
     "melk": MELKController
 }
+
+TRANSFORMERS: Dict[str, Callable] = {
+    "to_percentage": lambda v: v / 255 * 100,
+    "to_int": int
+}
+
+def void_transform(value: Any) -> Any:
+    """
+    void transform
+    """
+    return value
+
+class Channel:
+    """
+    Channel
+    """
+    @classmethod
+    def load(cls, data: int | Dict) -> "Channel":
+        """
+        load Channel from data
+        """
+        if isinstance(data, int):
+            return Channel(data)
+        number = data.get("number")
+        assert number
+        return Channel(number,
+                       list(map(lambda t: TRANSFORMERS.get(t, void_transform),
+                                data.get("transforms", []))))
+
+    def __init__(self, number: int, transforms: Optional[List[Callable]] = None) -> None:
+        self._number = number
+        self._transforms = transforms or []
+
+    @property
+    def number(self) -> int:
+        """
+        DMX channel number
+        """
+        return self._number
+
+    @property
+    def transforms(self) -> List[Callable]:
+        """
+        list of transforms
+        """
+        return self._transforms
+
+    def transform(self, value: int) -> Any:
+        """
+        transform value
+        """
+        return reduce(lambda acc, transform: transform(acc), self.transforms, value)
 
 class Exec:
     """
@@ -29,14 +84,17 @@ class Exec:
         """
         attr = data.get("exec")
         assert attr
+        channels = dict(map(lambda item: (item[0],
+                                          Channel.load(item[1]),),
+                            data.get("channels", {}).items()))
         return Exec(led_strip,
                     attr,
-                    data.get("channels", {}))
+                    channels)
 
     def __init__(self,
                  led_strip: "LEDStrip",
                  attr: str,
-                 channels: Optional[dict] = None) -> None:
+                 channels: Optional[Dict[str, Channel]] = None) -> None:
         self._led_strip = led_strip
         self._attr = attr
         self._channels = channels or {}
@@ -57,13 +115,13 @@ class Exec:
         return self._attr
 
     @property
-    def channels(self) -> Dict[str, int]:
+    def channels(self) -> Dict[str, Channel]:
         """
         channels map
         """
         return self._channels
 
-    def next_kwargs(self) -> Dict[str, int]:
+    def next_kwargs(self) -> Dict[str, Any]:
         """
         build next kwargs
         """
@@ -139,10 +197,11 @@ class LEDStrip:
         assert controller_class
         mac_address = data.get("mac_address")
         assert mac_address
+        channel = Channel.load(data.get("mode_channel", 1))
         led_strip = LEDStrip(dmx,
                              controller_class,
                              mac_address,
-                             data.get("mode_channel", 1))
+                             channel)
         led_strip.modes = list(map(lambda mode_data: Mode.load(led_strip, mode_data),
                                    data.get("modes", [])))
         return led_strip
@@ -151,12 +210,12 @@ class LEDStrip:
                  dmx: "DMXUniverseListener",
                  controller_class: Type[Controller],
                  mac_address: str,
-                 mode_channel: int = 1,
+                 mode_channel: Optional[Channel] = None,
                  modes: Optional[List[Mode]] = None) -> None:
         self._dmx = dmx
         self._controller_class = controller_class
         self._mac_address = mac_address
-        self._mode_channel = mode_channel
+        self._mode_channel = mode_channel or Channel(1)
         self.modes: List[Mode] = modes or []
         self._bt: Optional[BTLedStrip] = None
         self._current_mode: Optional[Mode] = None
@@ -183,7 +242,7 @@ class LEDStrip:
         return self._mac_address
 
     @property
-    def mode_channel(self) -> int:
+    def mode_channel(self) -> Channel:
         """
         mode channel
         """
@@ -237,8 +296,12 @@ class DMXUniverseListener:
         """
         self._values = values
 
-    def value(self, channel: int) -> int:
+    def value(self, channel: Channel) -> int:
         """
         get dmx channel value
         """
-        return self._values[channel - 1]
+        try:
+            dmx_value = self._values[channel.number - 1]
+            return channel.transform(dmx_value)
+        except IndexError:
+            return 0

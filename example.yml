@@ -6,36 +6,61 @@ modes:
   execs:
   - exec: brightness
     channels:
-      percentage: 2
+      percentage: &brightness_percentage
+        number: 2
+        transforms:
+        - to_percentage
+        - to_int
   - exec: color
     channels:
-      red: 3
-      green: 4
-      blue: 5
+      red:
+        number: 3
+        transforms:
+        - to_percentage
+      green:
+        number: 4
+        transforms:
+        - to_percentage
+      blue:
+        number: 5
+        transforms:
+        - to_percentage
 - until: 100
   execs:
   - exec: brightness
     channels:
-      percentage: 2
+      percentage: *brightness_percentage
   - exec: white
     channels:
-      cold: 6
+      cold:
+        number: 6
+        transforms:
+        - to_percentage
+        - to_int
 - until: 150
   execs:
   - exec: brightness
     channels:
-      percentage: 2
+      percentage: *brightness_percentage
   - exec: white_cold
     channels:
-      brightness: 7
+      brightness:
+        number: 7
+        transforms:
+        - to_percentage
+        - to_int
 - until: 200
   execs:
   - exec: brightness
     channels:
-      percentage: 2
+      percentage: *brightness_percentage
   - exec: effect_speed
     channels:
-      velocity: 8
+      velocity:
+        number: 8
+        transforms:
+        - to_percentage
+        - to_int
   - exec: effect
     channels:
       number: 9
