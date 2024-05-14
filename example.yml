@@ -1,0 +1,47 @@
+controller: melk
+mac_address: BE:16:8E:00:00:8B
+mode_channel: 1
+modes:
+- until: 50
+  execs:
+  - exec: brightness
+    channels:
+      percentage: 2
+  - exec: color
+    channels:
+      red: 3
+      green: 4
+      blue: 5
+- until: 100
+  execs:
+  - exec: brightness
+    channels:
+      percentage: 2
+  - exec: white
+    channels:
+      cold: 6
+- until: 150
+  execs:
+  - exec: brightness
+    channels:
+      percentage: 2
+  - exec: white_cold
+    channels:
+      brightness: 7
+- until: 200
+  execs:
+  - exec: brightness
+    channels:
+      percentage: 2
+  - exec: effect_speed
+    channels:
+      velocity: 8
+  - exec: effect
+    channels:
+      number: 9
+- until: 225
+  execs:
+  - exec: turn_on
+- until: 250
+  execs:
+  - exec: turn_off

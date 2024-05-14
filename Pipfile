@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[scripts]
+lint = "pylint artnet_to_btledstrip"
+mypy = "mypy artnet_to_btledstrip"
+
+[packages]
+stupidartnet = "*"
+btledstrip = "*"
+pyaml = "*"
+
+[dev-packages]
+pylint = "*"
+mypy = "*"
+types-pyyaml = "*"
+
+[requires]
+python_version = "3.12"
+python_full_version = "3.12.1"
