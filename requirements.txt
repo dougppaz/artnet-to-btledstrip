@@ -1,0 +1,7 @@
+-i https://pypi.org/simple
+bleak==0.22.1; python_version < '3.13' and python_version >= '3.8'
+btledstrip==0.2.1; python_version >= '3.12'
+dbus-fast==2.21.2; python_version >= '3.7' and python_version < '4.0'
+pyaml==24.4.0; python_version >= '3.8'
+pyyaml==6.0.1; python_version >= '3.6'
+stupidartnet==1.5.0; python_version >= '3.6'

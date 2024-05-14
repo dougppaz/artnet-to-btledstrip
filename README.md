@@ -4,6 +4,10 @@ Add your Bluetooth LED Strips to your DMX network with Art-Net and the [btledstr
 
 ## Usage
 
+1. Install requirements
+   ```console
+   $ pip install -r requirements.txt
+   ```
 1. Create the LED Strip config file. Following [example.yml](./example.yml).
 1. Run artnet_to_btledstrip module with Art-Net Server and btledstrip integration.
    ```console
