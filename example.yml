@@ -8,7 +8,7 @@ modes:
     channels:
       percentage: &brightness_percentage
         number: 2
-        transforms:
+        transforms: &to_int_percentage
         - to_percentage
         - to_int
   - exec: color
@@ -34,9 +34,7 @@ modes:
     channels:
       cold:
         number: 6
-        transforms:
-        - to_percentage
-        - to_int
+        transforms: *to_int_percentage
 - until: 150
   execs:
   - exec: brightness
@@ -46,9 +44,7 @@ modes:
     channels:
       brightness:
         number: 7
-        transforms:
-        - to_percentage
-        - to_int
+        transforms: *to_int_percentage
 - until: 200
   execs:
   - exec: brightness
@@ -58,9 +54,7 @@ modes:
     channels:
       velocity:
         number: 8
-        transforms:
-        - to_percentage
-        - to_int
+        transforms: *to_int_percentage
   - exec: effect
     channels:
       number: 9
