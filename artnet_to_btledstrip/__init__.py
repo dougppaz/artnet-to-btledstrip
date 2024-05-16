@@ -121,20 +121,20 @@ class Exec:
         """
         return self._channels
 
-    def next_kwargs(self) -> Dict[str, Any]:
+    def next_kwargs(self, dmx: "DMXUniverseListener") -> Dict[str, Any]:
         """
         build next kwargs
         """
         return dict(map(lambda item: (item[0],
-                                      self.led_strip.dmx.value(item[1]),),
+                                      dmx.value(item[1]),),
                         self.channels.items()))
 
-    async def do(self, force: bool = False) -> None:
+    async def do(self, dmx: "DMXUniverseListener", force: bool = False) -> None:
         """
         exec btstripline commands
         """
         exec_fn = getattr(self.led_strip.bt.exec, self.attr)
-        next_kwargs = self.next_kwargs()
+        next_kwargs = self.next_kwargs(dmx)
         if force or next_kwargs != self._current_kwargs:
             await exec_fn(**next_kwargs)
             self._current_kwargs = next_kwargs
@@ -189,7 +189,7 @@ class LEDStrip:
     LEDStrip manager
     """
     @classmethod
-    def load(cls, dmx: "DMXUniverseListener", data: dict) -> "LEDStrip":
+    def load(cls, data: dict) -> "LEDStrip":
         """
         load LEDStrip instance from data
         """
@@ -198,8 +198,7 @@ class LEDStrip:
         mac_address = data.get("mac_address")
         assert mac_address
         channel = Channel.load(data.get("mode_channel", 1))
-        led_strip = LEDStrip(dmx,
-                             controller_class,
+        led_strip = LEDStrip(controller_class,
                              mac_address,
                              channel)
         led_strip.modes = list(map(lambda mode_data: Mode.load(led_strip, mode_data),
@@ -207,25 +206,16 @@ class LEDStrip:
         return led_strip
 
     def __init__(self,  # pylint: disable=R0913
-                 dmx: "DMXUniverseListener",
                  controller_class: Type[Controller],
                  mac_address: str,
                  mode_channel: Optional[Channel] = None,
                  modes: Optional[List[Mode]] = None) -> None:
-        self._dmx = dmx
         self._controller_class = controller_class
         self._mac_address = mac_address
         self._mode_channel = mode_channel or Channel(1)
         self.modes: List[Mode] = modes or []
         self._bt: Optional[BTLedStrip] = None
         self._current_mode: Optional[Mode] = None
-
-    @property
-    def dmx(self) -> "DMXUniverseListener":
-        """
-        DMXUniverseListener instance
-        """
-        return self._dmx
 
     @property
     def controller_class(self) -> Type[Controller]:
@@ -259,11 +249,11 @@ class LEDStrip:
         assert self._bt
         return self._bt
 
-    async def tick(self) -> None:
+    async def tick(self, dmx: "DMXUniverseListener") -> None:
         """
         tick
         """
-        mode_value = self.dmx.value(self.mode_channel)
+        mode_value = dmx.value(self.mode_channel)
         for mode in self.modes:
             if mode.until >= mode_value:
                 mode_changed = False
@@ -271,24 +261,30 @@ class LEDStrip:
                     self._current_mode = mode
                     mode_changed = True
                 for ex in mode.execs:
-                    await ex.do(force=mode_changed)
+                    await ex.do(dmx, force=mode_changed)
                 break
 
 class DMXUniverseListener:
     """
-    DMX universe listener with Art-Net server
+    DMX Universe Listener
     """
-    _artnet_server: StupidArtnetServer
+    _listener_id: Optional[int] = None
     _values: List[int] = []
 
-    def __init__(self,
-                 artnet_server: Optional[StupidArtnetServer] = None,
-                 universe: int = 0) -> None:
-        self._artnet_server = artnet_server or StupidArtnetServer()
-        self._listener_id = self._artnet_server.register_listener(
-            universe,
+    def __init__(self, dmx_server: "DMXServer", universe: int) -> None:
+        self._dmx_server = dmx_server
+        self._universe = universe
+
+    async def __aenter__(self) -> "DMXUniverseListener":
+        self._listener_id = self._dmx_server.artnet_server.register_listener(
+            (self._universe - 1),
             callback_function=self.callback_function
         )
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        self._dmx_server.artnet_server.delete_listener(self._listener_id)
+        self._listener_id = None
 
     def callback_function(self, values: List[int]) -> None:
         """
@@ -305,3 +301,26 @@ class DMXUniverseListener:
             return channel.transform(dmx_value)
         except IndexError:
             return 0
+
+class DMXServer:
+    """
+    DMX Art-Net server
+    """
+    _artnet_server: StupidArtnetServer
+
+    def __init__(self,
+                 artnet_server: Optional[StupidArtnetServer] = None) -> None:
+        self._artnet_server = artnet_server or StupidArtnetServer()
+
+    @property
+    def artnet_server(self) -> StupidArtnetServer:
+        """
+        StupidArtnetServer instance
+        """
+        return self._artnet_server
+
+    def listen(self, universe: int = 0) -> DMXUniverseListener:
+        """
+        listen DMX universe
+        """
+        return DMXUniverseListener(self, universe)
