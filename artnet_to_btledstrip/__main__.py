@@ -44,7 +44,6 @@ async def main(led_strip: LEDStrip, universe: int):
                 await led_strip.tick(dmx)
             except Exception as e:  # pylint: disable=W0718
                 logger.exception(e)
-            await asyncio.sleep(.05)
 
 parser = argparse.ArgumentParser(prog="artnet to brledstrip")
 parser.add_argument("led_strip_config_file",
